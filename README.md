@@ -4,83 +4,101 @@
   <img src="assets/infographic.png" alt="Hallucination Hunter – VSCode extension for real-time AI answer validation" width="800">
 </p>
 
-<h3 align="center">REPLACE THIS WITH A ONE-LINE DESCRIPTION (e.g. "Scan dependencies for vulnerabilities without leaving your terminal")</h3>
+<h3 align="center">A VSCode extension that, when Copilot or any LLM suggests code, runs a lightweight self-check: executes the code in a sandbox, runs relevant linters/tests, and scores confidence. Flags low-confidence suggestions with explanations, helping solo developers catch hallucinations before they break builds.</h3>
 
-Hallucination Hunter is a VSCode extension that monitors AI-generated code suggestions (e.g., from GitHub Copilot, Claude Code, Cursor) and runs lightweight self-checks in a sandbox to catch bugs before they break builds. It helps solo developers trust AI assistants by validating suggestions in real time.
-$ hallucination-hunter scan
-[INFO] Started scanning AI suggestions...
-[WARN] Potential hallucination detected: call to non-existent function 'foo_bar' in suggestion from Copilot
+<p align="center">
+  <a href="#quick-start">Quick Start</a> &bull;
+  <a href="#features">Features</a> &bull;
+  <a href="#examples">Examples</a> &bull;
+  <a href="#contributing">Contributing</a>
+</p>
+
+## What is this?
+Hallucination Hunter is a VSCode extension that monitors AI‑generated code suggestions, runs them in an isolated sandbox with linters, type checks and unit tests, and returns a confidence score. It is aimed at solo developers who rely on Copilot, Claude, Cursor or similar assistants and want immediate feedback on the safety of each suggestion.
+
+Example usage via the bundled CLI:
 ```
+$ hhunter check --code "def add(a, b): return a + b"
+Confidence: 0.96 | Lint: none | Tests: passed
+```
+
+## Problem
+AI-generated code often contains subtle bugs or nonexistent APIs; solo developers lack time to manually verify each suggestion, leading to wasted debugging cycles and eroded trust in AI assistants.
+
+## Features
 | Feature | Description |
-|---------|-------------|
-| Real-time interception | Captures AI-generated code suggestions as they appear and forwards them for immediate validation without noticeable latency. |
-| Sandboxed self-check | Runs lightweight linters (e.g., Ruff, Flake8), type checkers (e.g., MyPy), and unit tests (e.g., Pytest) in an isolated, ephemeral container to validate suggestions without affecting the workspace. |
-| Confidence-based reporting | Assigns a confidence score (0–1) to each suggestion; triggers inline warnings with explanations only when score < threshold; offers quick‑fix links for fixable issues. |
-| Language agnostic | Works with any AI code assistant (GitHub Copilot, Claude Code, Cursor) by intercepting their suggestion streams. |
-| Zero external dependencies | All validation (linting, type checking, testing) occurs locally inside the sandbox; no calls to external APIs for verification. |
-| Sandbox timeout control | Configurable maximum sandbox lifetime (default 30 seconds) prevents resource hogging and ensures timely cleanup. |
-1. Clone the repository: `git clone https://github.com/m2ai-portfolio/hallucination-hunter`
-2. Install dependencies: `npm install`
-3. Open the project in VSCode: `code hallucination-hunter`
-4. Start debugging: Press `F5` or use the Run > Start Debugging menu
-**Title**: Detecting an undefined variable in a Copilot suggestion
-**Command**: (Triggered automatically when accepting an AI suggestion in VSCode)
-**Sample Output**: 
+|---|---|
+| Real‑time interception | Hooks into the suggestion stream of Copilot, Claude, Cursor and forwards snippets instantly to the checker. |
+| Sandboxed self‑check | Spins up an ephemeral container to run linting, type checking and unit tests without affecting the workspace. |
+| Confidence‑based scoring | Computes a 0‑1 score from lint, test and security results; shows warnings only when below the threshold. |
+| Inline diagnostics | Decorates the original suggestion with explanations and a quick‑fix link when confidence is low. |
+| Configurable thresholds | Environment variables let you adjust confidence cutoff, sandbox timeout and lint tools. |
+| Zero external calls | All verification runs locally; no calls to OpenAI, Anthropic, Google or GitHub APIs. |
+
+## Quick Start
+1. Clone the repository:  
+   ```bash
+   git clone https://github.com/m2ai-portfolio/hallucination-hunter.git
+   cd hallucination-hunter
+   ```
+2. Install the Python package in editable mode:  
+   ```bash
+   pip install -e .
+   ```
+3. Launch the extension in VSCode for testing:  
+   ```bash
+   code .
+   ```  
+   Press `F5` to start the extension host, then trigger a Copilot suggestion to see the inline confidence badge.
+
+## Examples
+**Basic safe suggestion**  
 ```
-[Hallucination Hunter] Warning: Undefined variable 'result' on line 3 of suggested code
+$ hhunter check --code "def square(x): return x * x"
+Confidence: 0.99 | Lint: none | Tests: passed
 ```
-**Title**: Blocking a call to a non-existent internal API
-**Command**: (Upon AI suggestion acceptance)
-**Sample Output**:
+**Suggestion with lint issue**  
 ```
-[Hallucination Hunter] Security Warning: Call to non-existent function 'internalApi_v2' blocked
+$ hhunter check --code "def foo( ):return 1"
+Confidence: 0.62 | Lint: missing whitespace after ',' and before ')' | Tests: passed
 ```
-**Title**: Auto-correcting a common typo in a suggestion
-**Command**: (When confidence is low and issue is fixable)
-**Sample Output**:
+**Suggestion failing a security check**  
 ```
-[Hallucination Hunter] Info: Fixed typo: 'recieve' -> 'receive' at line 10
-[Hallucination Hunter] Info: Suggestion accepted after fix
+$ hhunter check --code "import os; os.system('rm -rf /')"
+Confidence: 0.08 | Lint: none | Tests: passed | Security: Potential command injection
 ```
-hallucination-hunter/
-├── .vscode/
-│   └── launch.json
-├── src/
-│   ├── interceptor.ts
-│   ├── checker.ts
-│   └── reporter.ts
-├─ tests/
-│   ├── test_interceptor.py
-│   ├── test_checker.py
-│   └── test_reporter.py
-├── sandbox/
-│   └── Dockerfile   # used by Checker to spawn ephemeral containers
-├── pyproject.toml
-├── README.md
-└─ LICENSE
+
+## File Structure
 ```
-# Key files:
-# - src/: Contains the core source code (TypeScript)
-# - tests/: Contains unit tests (Python)
-# - sandbox/: Contains Dockerfile for ephemeral test containers
-# - pyproject.toml: Project configuration and dependencies
-# - README.md: This documentation file
-# - LICENSE: License terms
+Hallucination Hunter – VSCode extension for real-time AI answer validation/
+  hallucination-hunter/
+    src/                    # Core source code
+    tests/                  # Test suite
+    pyproject.toml          # Project config & dependencies
+    README.md               # This file
+  assets/                   # Banner image
+  .gitignore
+  LICENSE
+  spec.md                   # Specification
+```
+
+## Tech Stack
 | Technology | Purpose |
-|----------|---------|
-| TypeScript | Extension source code |
-| Python | Unit test suite |
-| Docker | Sandboxed test containers (for Checker to spawn ephemeral environments) |
+|---|---|
+| Python 3.11+ | Extension host and sandbox logic |
+| TypeScript / JavaScript | VSCode API integration |
+| Click | Command‑line interface for the checker |
+| Pytest | Test framework executed inside the sandbox |
+| Ruff / Flake8 | Linting of suggested code |
+| MyPy | Type checking |
+| Bandit | Security linting |
+| Docker (optional) | Underlying sandbox container execution |
+
 ## Contributing
+Fork the repository, make your changes, run `pytest` to verify, and submit a pull request.
 
-Please read [CONTRIBUTING.md] for details on our code of conduct, and the process for submitting pull requests to us.
-
-## How to Contribute
-
-- Fork the repository
-- Create a feature branch
-- Make your changes
-- Test your changes
-- Submit a pull request
+## License
 MIT
+
+## Author
 Matthew Snow -- [M2AI](https://m2ai.co) | [@m2ai-portfolio](https://github.com/m2ai-portfolio)
